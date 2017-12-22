@@ -243,36 +243,7 @@ describe('Testsuite Stubing', function () {
   })
 
 
-
-  it('Validation should fail, "a" should be number', (done) => {
-    const nats = new Nats()
-    const hemera = new Hemera(nats)
-
-    hemera.use(require('hemera-joi'))
-
-    hemera.ready(() => {
-
-      hemera.setOption('payloadValidator', 'hemera-joi');
-
-      const Joi = hemera.joi;
-
-      hemera.add({
-        topic: 'math',
-        cmd: 'add',
-        a: Joi.number().required()
-      }, function (args, cb) {
-        console.log('test')
-        return cb(null, args.a + args.b)
-      })
-
-      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: "aaa" }, (err, result) => {
-        expect(err.message).to.be.equal('child "a" fails because ["a" must be a number]');
-        hemera.close(done)
-      })
-    })
-  })
-
-  it('Validation should pass', function (done) {
+  it('Basic JOI validation', function (done) {
     const nats = new Nats()
     const hemera = new Hemera(nats)
 
@@ -295,11 +266,53 @@ describe('Testsuite Stubing', function () {
       AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: 100, b: 200 }, (err, result) => {
 
         expect(result).to.be.equal(300);
+      })
+
+      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { b: 200 }, (err, result) => {
+
+        expect(err.message).to.be.equal('child "a" fails because ["a" is required]');
 
         hemera.close(done)
       })
     })
   })
+
+  it('JOI validation, object keys validation', (done) => {
+    const nats = new Nats()
+    const hemera = new Hemera(nats)
+
+    hemera.use(require('hemera-joi'))
+
+    hemera.ready(() => {
+
+      hemera.setOption('payloadValidator', 'hemera-joi');
+
+      const Joi = hemera.joi;
+
+      hemera.add({
+        topic: 'math',
+        cmd: 'add',
+        joi$: Joi.object().keys({ a: Joi.number().required(), b: Joi.number().required() })
+      }, function (args, cb) {
+        return cb(null, args.a + args.b)
+      })
+
+      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: "aaa" }, (err, result) => {
+        expect(err.message).to.be.equal('child "a" fails because ["a" must be a number]');
+      })
+
+      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: 100 }, (err, result) => {
+        expect(err.message).to.be.equal('child "b" fails because ["b" is required]');
+      })
+
+      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: 100, b: 200 }, (err, result) => {
+        expect(result).to.be.equal(300);
+        hemera.close(done)
+      })
+    })
+  })
+
+
 
 
 })

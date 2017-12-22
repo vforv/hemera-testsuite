@@ -27,7 +27,7 @@ class AddStub {
   static run(hemera, pattern, request, cb, done) {
     const payload = hemera.router.lookup(pattern)
     const PreValidationError = hemera.createError('PreValidationError');
-    
+
     if (payload) {
 
       if (Object.keys(payload.schema).length === 0) {
@@ -35,9 +35,19 @@ class AddStub {
         return payload
       }
 
+      let joiSchema = payload.schema
+
+      if (payload.schema.joi$) {
+        if (payload.schema.joi$.pre) {
+          joiSchema = payload.schema.joi$.pre
+        } else {
+          joiSchema = payload.schema.joi$
+        }
+      }
+
       Joi.validate(
         request,
-        payload.schema,
+        joiSchema,
         {
           allowUnknown: true
         },
@@ -51,7 +61,7 @@ class AddStub {
 
             cb = cb.bind(null, newErr, null)
             cb();
-            
+
             return payload
 
           } else {
