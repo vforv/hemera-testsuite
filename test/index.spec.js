@@ -81,14 +81,14 @@ describe('Testsuite Stubing', function () {
         topic: 'math',
         cmd: 'add'
       })
-      .use((req, next) => {
-        next()
-      })
-      .end(function (args, cb) {
-        this.act({ topic: 'math', cmd: 'sub', a: 100, b: 50 }, function (err, resp) {
-          cb(err, args.a + args.b - resp)
+        .use((req, next) => {
+          next()
         })
-      })
+        .end(function (args, cb) {
+          this.act({ topic: 'math', cmd: 'sub', a: 100, b: 50 }, function (err, resp) {
+            cb(err, args.a + args.b - resp)
+          })
+        })
 
       actStub.stub({ topic: 'math', cmd: 'sub', a: 100, b: 50 }, null, 50)
 
@@ -241,4 +241,65 @@ describe('Testsuite Stubing', function () {
       })
     })
   })
+
+
+
+  it('Validation should fail, "a" should be number', (done) => {
+    const nats = new Nats()
+    const hemera = new Hemera(nats)
+
+    hemera.use(require('hemera-joi'))
+
+    hemera.ready(() => {
+
+      hemera.setOption('payloadValidator', 'hemera-joi');
+
+      const Joi = hemera.joi;
+
+      hemera.add({
+        topic: 'math',
+        cmd: 'add',
+        a: Joi.number().required()
+      }, function (args, cb) {
+        console.log('test')
+        return cb(null, args.a + args.b)
+      })
+
+      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: "aaa" }, (err, result) => {
+        expect(err.message).to.be.equal('child "a" fails because ["a" must be a number]');
+        hemera.close(done)
+      })
+    })
+  })
+
+  it('Validation should pass', function (done) {
+    const nats = new Nats()
+    const hemera = new Hemera(nats)
+
+    hemera.use(require('hemera-joi'))
+
+    hemera.ready(function () {
+
+      hemera.setOption('payloadValidator', 'hemera-joi');
+
+      const Joi = hemera.joi;
+
+      hemera.add({
+        topic: 'math',
+        cmd: 'add',
+        a: Joi.number().required()
+      }, function (args, cb) {
+        cb(null, args.a + args.b)
+      })
+
+      AddStub.run(hemera, { topic: 'math', cmd: 'add' }, { a: 100, b: 200 }, (err, result) => {
+
+        expect(result).to.be.equal(300);
+
+        hemera.close(done)
+      })
+    })
+  })
+
+
 })
